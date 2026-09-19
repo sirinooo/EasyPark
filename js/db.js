@@ -33,7 +33,7 @@
 
   // Render API used by the GitHub Pages frontend. Replace this once the API
   // is deployed, e.g. https://easypark-api.onrender.com
-  const LIVE_API_BASE = 'https://YOUR-EASYPARK-API.onrender.com';
+  const LIVE_API_BASE = 'https://easypark-1yd1.onrender.com';
 
   let livePresence = null;
   let livePresenceLoaded = false;
@@ -63,21 +63,37 @@
 
   async function syncRealReservation() {
     try {
-      const today = todayISO();
-      const reserved = state.reservations.some(r =>
-        r.slot === REAL_SENSOR_SLOT &&
-        r.date === today &&
-        r.status !== 'cancelled' &&
-        r.status !== 'completed'
-      );
+      const now = new Date();
+
+      // Only an approved reservation that is currently active should be
+      // sent to the physical Slot 101. The Render API handles expiry.
+      const activeReservation = state.reservations
+        .filter(r => r.slot === REAL_SENSOR_SLOT && r.status === 'approved')
+        .map(r => {
+          const startsAt = new Date(r.date + 'T' + r.start + ':00');
+          const endsAt = new Date(startsAt.getTime() + r.duration * 60 * 60 * 1000);
+          return { r, startsAt, endsAt };
+        })
+        .filter(x => now < x.endsAt)
+        .sort((a, b) => a.startsAt - b.startsAt)[0];
+
+      const reserved = !!activeReservation;
+
+      const body = reserved
+        ? {
+            reserved: true,
+            startsAt: activeReservation.startsAt.toISOString(),
+            endsAt: activeReservation.endsAt.toISOString()
+          }
+        : { reserved: false };
 
       await fetch(LIVE_API_BASE + '/api/slots/' + REAL_SENSOR_SLOT + '/reservation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reserved })
+        body: JSON.stringify(body)
       });
     } catch (e) {
-      // Live API is optional until the backend is deployed.
+      // Keep the local/demo data if the live API is temporarily unavailable.
     }
   }
 
@@ -334,9 +350,11 @@
     return SLOT_META.map(meta => {
       let status = 'available';
       if (meta.id === REAL_SENSOR_SLOT && livePresenceLoaded) {
-        // Physical Slot 101: reservation has priority over sensor occupancy.
-        if (liveReservation) status = 'reserved';
-        else status = livePresence ? 'occupied' : 'available';
+        // Physical Slot 101: a car always shows occupied/red.
+        // Reservation only shows reserved/blue when the space is empty.
+        if (livePresence) status = 'occupied';
+        else if (liveReservation) status = 'reserved';
+        else status = 'available';
       } else if (oos[meta.id]) status = 'maintenance';
       else if (reserved.indexOf(meta.id) >= 0) status = 'reserved';
       else if (state.presence[meta.id]) status = 'occupied';
@@ -727,12 +745,12 @@
 
   // Load immediately.
   load();
-  // Start live Slot 101 polling.
-  pollRealSensor();
-  setInterval(pollRealSensor, 1000);
-  syncRealReservation();
 
-  // Only the real slot is polled from the ESP32-backed API.
+  // Keep the website synced with the physical Slot 101.
   pollRealSensor();
   setInterval(pollRealSensor, 1000);
+
+  // Keep the backend reservation state synced, including start/end transitions.
+  syncRealReservation();
+  setInterval(syncRealReservation, 1000);
 })();

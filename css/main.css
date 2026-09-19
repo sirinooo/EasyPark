@@ -23,8 +23,8 @@
   --green-available-rgb: 16, 185, 129;
   --red-occupied: #EF4444;
   --red-occupied-rgb: 239, 68, 68;
-  --yellow-reserved: #F59E0B;
-  --yellow-reserved-rgb: 245, 158, 11;
+  --yellow-reserved: #3B82F6;
+  --yellow-reserved-rgb: 59, 130, 246;
   --gray-maintenance: #9CA3AF;
   --gray-maintenance-rgb: 156, 163, 175;
   --shadow-sm: 0 1px 2px rgba(2, 31, 148, 0.05);
@@ -364,7 +364,7 @@ a:hover { color: var(--imperial-blue-light); }
 
 .badge-available { background: rgba(16, 185, 129, 0.15); color: var(--green-available); }
 .badge-occupied { background: rgba(239, 68, 68, 0.15); color: var(--red-occupied); }
-.badge-reserved { background: rgba(245, 158, 11, 0.15); color: var(--yellow-reserved); }
+.badge-reserved { background: rgba(59, 130, 246, 0.15); color: var(--yellow-reserved); }
 .badge-maintenance { background: rgba(156, 163, 175, 0.15); color: var(--gray-maintenance); }
 .badge-pending { background: rgba(59, 130, 246, 0.15); color: #3B82F6; }
 .badge-approved { background: rgba(16, 185, 129, 0.15); color: var(--green-available); }
@@ -372,7 +372,7 @@ a:hover { color: var(--imperial-blue-light); }
 .badge-completed { background: rgba(99, 102, 241, 0.15); color: #6366F1; }
 .badge-fault { background: rgba(239, 68, 68, 0.15); color: var(--red-occupied); }
 .badge-operational { background: rgba(16, 185, 129, 0.15); color: var(--green-available); }
-.badge-inspection { background: rgba(245, 158, 11, 0.15); color: var(--yellow-reserved); }
+.badge-inspection { background: rgba(59, 130, 246, 0.15); color: var(--yellow-reserved); }
 
 /* Parking Slot Styles */
 .parking-slot {
@@ -422,7 +422,7 @@ a:hover { color: var(--imperial-blue-light); }
 
 .parking-slot.available { background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%); }
 .parking-slot.occupied { background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%); }
-.parking-slot.reserved { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%); }
+.parking-slot.reserved { background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%); }
 .parking-slot.maintenance { background: linear-gradient(135deg, rgba(156, 163, 175, 0.1) 0%, rgba(156, 163, 175, 0.05) 100%); }
 
 .parking-slot.available .slot-number { color: var(--green-available); }
@@ -936,7 +936,7 @@ a:hover { color: var(--imperial-blue-light); }
 .spot-occupied .spot-label { color: #b91c1c; }
 .spot-reserved   { background: linear-gradient(160deg,#fdf6e2,#faeec4); border-color: rgba(245,158,11,.6); }
 .spot-reserved .spot-id { color: #d97706; }
-.spot-reserved .spot-label { color: #b45309; }
+.spot-reserved .spot-label { color: #2563EB; }
 .spot-maintenance{ background: linear-gradient(160deg,#f2f3f5,#e2e4e8); border-color: rgba(107,114,128,.5); }
 .spot-maintenance .spot-id { color: #4b5563; }
 .spot-maintenance .spot-label { color: #6b7280; }
@@ -1144,7 +1144,7 @@ a:hover { color: var(--imperial-blue-light); }
 .slot-option.available { border-color: rgba(16,185,129,.5); color: #047857; }
 .slot-option.available:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); background: rgba(16,185,129,.06); }
 .slot-option.occupied { border-color: rgba(239,68,68,.5); color: #b91c1c; cursor: not-allowed; }
-.slot-option.reserved { border-color: rgba(245,158,11,.55); color: #b45309; cursor: not-allowed; }
+.slot-option.reserved { border-color: rgba(59,130,246,.55); color: #2563EB; cursor: not-allowed; }
 .slot-option.maintenance { border-color: rgba(107,114,128,.45); color: #6b7280; cursor: not-allowed; }
 .slot-option:disabled { opacity: .55; }
 .slot-option.selected {
