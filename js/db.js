@@ -1342,8 +1342,13 @@
     seed();
     persist();
 
-    liveSlots = {};
-    liveReservationSignatures = {};
+    Object.keys(liveSlots).forEach(function (key) {
+     delete liveSlots[key];
+   });
+
+   Object.keys(liveReservationSignatures).forEach(function (key) {
+     delete liveReservationSignatures[key];
+   });
 
     syncLiveReservations();
   }
