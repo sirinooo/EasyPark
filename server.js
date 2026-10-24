@@ -2,6 +2,18 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(express.json());
+app.get('/', (req, res) => {
+  res.json({
+    message: 'EasyPark API is running',
+    status: 'online',
+    slots: 8,
+    slotIds: Array.from({ length: 8 }, (_, i) => String(101 + i)),
+    endpoints: {
+      allSlots: '/api/slots',
+      health: '/api/health'
+    }
+  });
+});
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
