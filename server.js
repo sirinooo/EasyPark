@@ -1,11 +1,7 @@
 const express = require('express');
-
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 app.use(express.json());
-
-// Allow the GitHub Pages frontend and the ESP32 to talk to this API.
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -14,159 +10,79 @@ app.use((req, res, next) => {
   next();
 });
 
-// Only Slot 101 is connected to the real ESP32 for this prototype.
-let slot101Occupied = false;
-let slot101Reservation = {
-  active: false,
-  startsAt: null,
-  endsAt: null
-};
-
-function isReservationActive() {
-  if (!slot101Reservation.active || !slot101Reservation.endsAt) {
-    return false;
-  }
-
+const SLOT_IDS = Array.from({ length: 8 }, (_, i) => String(101 + i));
+const slots = Object.fromEntries(SLOT_IDS.map(slotId => [slotId, {
+  occupied: false,
+  reservation: { active: false, startsAt: null, endsAt: null },
+  updatedAt: new Date().toISOString()
+}]));
+function getSlot(slotId) { return SLOT_IDS.includes(String(slotId)) ? slots[String(slotId)] : null; }
+function isReservationActive(slot) {
+  const r = slot.reservation;
+  if (!r.active || !r.endsAt) return false;
   const now = Date.now();
-  const start = slot101Reservation.startsAt
-    ? new Date(slot101Reservation.startsAt).getTime()
-    : now;
-  const end = new Date(slot101Reservation.endsAt).getTime();
-
-  if (Number.isNaN(end) || now >= end) {
-    slot101Reservation = {
-      active: false,
-      startsAt: null,
-      endsAt: null
-    };
+  const start = r.startsAt ? new Date(r.startsAt).getTime() : now;
+  const end = new Date(r.endsAt).getTime();
+  if (Number.isNaN(end) || Number.isNaN(start) || now >= end) {
+    slot.reservation = { active: false, startsAt: null, endsAt: null };
     return false;
   }
-
   return now >= start && now < end;
 }
-
-function statusPayload() {
-  const reserved = isReservationActive();
-
-  // A physical car always means OCCUPIED.
-  // BLUE/RESERVED is shown only when the slot is empty.
-  const status = slot101Occupied
-    ? 'occupied'
-    : reserved
-      ? 'reserved'
-      : 'available';
-
+function statusPayload(slotId) {
+  const slot = getSlot(slotId);
+  const reserved = isReservationActive(slot);
   return {
-    slotId: '101',
-    occupied: slot101Occupied,
-    reserved,
-    reservationStartsAt: slot101Reservation.startsAt,
-    reservationEndsAt: slot101Reservation.endsAt,
-    status,
-    updatedAt: new Date().toISOString()
+    slotId: String(slotId), occupied: slot.occupied, reserved,
+    reservationStartsAt: slot.reservation.startsAt,
+    reservationEndsAt: slot.reservation.endsAt,
+    status: slot.occupied ? 'occupied' : reserved ? 'reserved' : 'available',
+    updatedAt: slot.updatedAt
   };
 }
-
-// ESP32 + webpage: read the complete live state.
-app.get('/api/slots/101/status', (req, res) => {
+app.get('/api/slots', (req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json(statusPayload());
+  res.json(SLOT_IDS.map(id => statusPayload(id)));
 });
-
-// Presence endpoint.
-app.get('/api/slots/101/presence', (req, res) => {
+app.get('/api/slots/:slotId/status', (req, res) => {
+  const slot = getSlot(req.params.slotId);
+  if (!slot) return res.status(404).json({ error: 'Unknown slot ID. Valid slots: 101–108.' });
   res.set('Cache-Control', 'no-store');
-  res.json({
-    slotId: '101',
-    occupied: slot101Occupied,
-    updatedAt: new Date().toISOString()
-  });
+  res.json(statusPayload(req.params.slotId));
 });
-
-// ESP32 -> API: physical sensor state.
-app.post('/api/slots/101/presence', (req, res) => {
-  if (typeof req.body.occupied !== 'boolean') {
-    return res.status(400).json({
-      error: 'occupied must be true or false'
-    });
-  }
-
-  slot101Occupied = req.body.occupied;
-
-  console.log('Slot 101 occupied:', slot101Occupied);
-
-  res.json({
-    ok: true,
-    ...statusPayload()
-  });
+app.get('/api/slots/:slotId/presence', (req, res) => {
+  const slot = getSlot(req.params.slotId);
+  if (!slot) return res.status(404).json({ error: 'Unknown slot ID. Valid slots: 101–108.' });
+  res.set('Cache-Control', 'no-store');
+  res.json({ slotId: String(req.params.slotId), occupied: slot.occupied, updatedAt: slot.updatedAt });
 });
-
-// Webpage -> API: reservation state for the physical Slot 101.
-app.post('/api/slots/101/reservation', (req, res) => {
-  if (typeof req.body.reserved !== 'boolean') {
-    return res.status(400).json({
-      error: 'reserved must be true or false'
-    });
-  }
-
+app.post('/api/slots/:slotId/presence', (req, res) => {
+  const slot = getSlot(req.params.slotId);
+  if (!slot) return res.status(404).json({ error: 'Unknown slot ID. Valid slots: 101–108.' });
+  if (typeof req.body.occupied !== 'boolean') return res.status(400).json({ error: 'occupied must be true or false' });
+  slot.occupied = req.body.occupied;
+  slot.updatedAt = new Date().toISOString();
+  console.log(`Slot ${req.params.slotId} occupied:`, slot.occupied);
+  res.json({ ok: true, ...statusPayload(req.params.slotId) });
+});
+app.post('/api/slots/:slotId/reservation', (req, res) => {
+  const slot = getSlot(req.params.slotId);
+  if (!slot) return res.status(404).json({ error: 'Unknown slot ID. Valid slots: 101–108.' });
+  if (typeof req.body.reserved !== 'boolean') return res.status(400).json({ error: 'reserved must be true or false' });
   if (!req.body.reserved) {
-    slot101Reservation = {
-      active: false,
-      startsAt: null,
-      endsAt: null
-    };
+    slot.reservation = { active: false, startsAt: null, endsAt: null };
   } else {
-    if (!req.body.endsAt) {
-      return res.status(400).json({
-        error: 'endsAt is required when reserved is true'
-      });
-    }
-
-    const endTime = new Date(req.body.endsAt).getTime();
-
-    if (Number.isNaN(endTime)) {
-      return res.status(400).json({
-        error: 'Invalid endsAt'
-      });
-    }
-
-    let startsAt = req.body.startsAt || new Date().toISOString();
-    const startTime = new Date(startsAt).getTime();
-
-    if (Number.isNaN(startTime)) {
-      return res.status(400).json({
-        error: 'Invalid startsAt'
-      });
-    }
-
-    if (endTime <= startTime) {
-      return res.status(400).json({
-        error: 'endsAt must be after startsAt'
-      });
-    }
-
-    slot101Reservation = {
-      active: true,
-      startsAt: new Date(startTime).toISOString(),
-      endsAt: new Date(endTime).toISOString()
-    };
+    if (!req.body.endsAt) return res.status(400).json({ error: 'endsAt is required when reserved is true' });
+    const end = new Date(req.body.endsAt).getTime();
+    const startsAt = req.body.startsAt || new Date().toISOString();
+    const start = new Date(startsAt).getTime();
+    if (Number.isNaN(end) || Number.isNaN(start)) return res.status(400).json({ error: 'Invalid reservation date' });
+    if (end <= start) return res.status(400).json({ error: 'endsAt must be after startsAt' });
+    slot.reservation = { active: true, startsAt: new Date(start).toISOString(), endsAt: new Date(end).toISOString() };
   }
-
-  console.log('Slot 101 reservation:', slot101Reservation);
-
-  res.json({
-    ok: true,
-    ...statusPayload()
-  });
+  slot.updatedAt = new Date().toISOString();
+  console.log(`Slot ${req.params.slotId} reservation:`, slot.reservation);
+  res.json({ ok: true, ...statusPayload(req.params.slotId) });
 });
-
-app.get('/api/health', (req, res) => {
-  res.json({
-    ok: true,
-    service: 'EasyPark API'
-  });
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`EasyPark API running on port ${PORT}`);
-});
+app.get('/api/health', (req, res) => res.json({ ok: true, service: 'EasyPark API', slots: SLOT_IDS }));
+app.listen(PORT, '0.0.0.0', () => console.log(`EasyPark API running on port ${PORT}`));
